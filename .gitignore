@@ -1,0 +1,7 @@
+data/auth.log
+data/access.log
+*.exe
+*.o
+*.out
+build/
+.vscode/
