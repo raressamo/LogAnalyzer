@@ -1,0 +1,4 @@
+brute_force_threshold=5
+brute_force_window=60
+auth_log_path=data/auth.log
+access_log_path=data/access.log
