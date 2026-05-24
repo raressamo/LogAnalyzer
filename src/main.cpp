@@ -88,7 +88,13 @@ int main() {
         int choice = -1;
         while (choice != 0) {
             printMenu(analyzer);
-            std::cin >> choice;
+            if (!(std::cin >> choice)) { // daca citirea esueaza
+                // input invalid, curatam starea si continuam
+                std::cin.clear();
+                clearInput();
+                std::cout << "Invalid input. Enter a number.\n";
+                continue;
+            }
             clearInput();
 
             try {
