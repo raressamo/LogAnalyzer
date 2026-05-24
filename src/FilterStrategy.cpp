@@ -64,7 +64,7 @@ StatusCodeFilter::StatusCodeFilter(int code)
 
 // lista goala deoarece la SSH nu se aplica
 std::vector<std::shared_ptr<AuthLogEntry>>
-StatusCodeFilter::apply(const std::vector<std::shared_ptr<AuthLogEntry>>& entries) const {
+StatusCodeFilter::apply(const std::vector<std::shared_ptr<AuthLogEntry>>& /* entries */) const {
     return {};
 }
 
