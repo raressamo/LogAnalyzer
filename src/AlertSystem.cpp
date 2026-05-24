@@ -1,4 +1,5 @@
 #include "AlertSystem.h"
+#include <algorithm>
 
 AlertSystem::AlertSystem() {
     threshold = ConfigManager::getInstance().getBruteForceThreshold();
@@ -10,28 +11,47 @@ void AlertSystem::subscribe(std::shared_ptr<IAlertObserver> observer) {
     observers.push_back(observer);
 }
 
-// parcurge toate logurile SSH si numara tentativele esuate per IP
-// daca un IP depaseste threshold-ul, notifica observatorii
+// gaseste numarul maxim de tentative dintr-un interval
+int AlertSystem::maxAttemptsInWindow(std::vector<std::chrono::system_clock::time_point> times) const {
+    std::sort(times.begin(), times.end());
+    int maxCount = 0;
+    for (size_t i = 0; i < times.size(); ++i) {
+        int count = 1;
+        for (size_t j = i + 1; j < times.size(); ++j) {
+            // duration_cast<seconds> calculeaza diferenta in secunde intre doua time_point
+            auto diff = std::chrono::duration_cast<std::chrono::seconds>(times[j] - times[i]).count();
+            if (diff <= window)
+                count++;
+            else
+                break; // lista e sortata, deci iesim
+        }
+        maxCount = std::max(maxCount, count);
+    }
+    return maxCount;
+}
+
+// parcurge toate logurile SSH si grupeaza tentativele esuate per IP cu timestamp-urile lor
+// daca un IP depaseste, notifica observaorii
 void AlertSystem::analyze(const Repository<AuthLogEntry>& repo) {
-    failedAttempts.clear();
+    // lista de timestamp-uri ale tentativelor esuate
+    std::map<std::string, std::vector<std::chrono::system_clock::time_point>> attemptTimes;
 
     for (const auto& entry : repo.getAll()) {
-        // numaram doar evenimentele de tip esec
         if (entry->getEvent() == AuthLogEntry::AuthEvent::FailedPassword ||
             entry->getEvent() == AuthLogEntry::AuthEvent::InvalidUser) {
-            failedAttempts[entry->getIP()]++;
+            attemptTimes[entry->getIP()].push_back(entry->getTimestamp());
         }
     }
 
     // verificam care IP-uri au depasit threshold-ul
-    for (const auto& [ip, count] : failedAttempts) {
-        if (count >= threshold)
-            notify(ip, count);
+    for (auto& [ip, times] : attemptTimes) {
+        int maxInWindow = maxAttemptsInWindow(times);
+        if (maxInWindow >= threshold)
+            notify(ip, maxInWindow);
     }
 }
 
 // notifica toti observatorii valizi
-// lock() pe weak_ptr returneaza un shared_ptr valid sau nullptr daca observatorul a fost distrus
 void AlertSystem::notify(const std::string& ip, int attempts) {
     for (auto& weakObs : observers) {
         if (auto obs = weakObs.lock())

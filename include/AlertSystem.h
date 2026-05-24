@@ -6,14 +6,12 @@
 #include <vector>
 #include <memory>
 #include <map>
+#include <chrono>
 
 class AlertSystem {
 private:
     // weak_ptr in loc de shared_ptr deoarece alertsystem nu detine observatorii, doar se uita la ei
     std::vector<std::weak_ptr<IAlertObserver>> observers;
-
-    // numarul de tentative esuate per IP
-    std::map<std::string, int> failedAttempts;
 
     int threshold; // din ConfigManager
     int window; // intervalul in secunde
@@ -30,4 +28,7 @@ public:
 private:
     // notifica toti observatorii activi (weak_ptr valid)
     void notify(const std::string& ip, int attempts);
+
+    // returneaza numarul maxim de tentative dintr-un interval
+    int maxAttemptsInWindow(std::vector<std::chrono::system_clock::time_point> times) const;
 };
